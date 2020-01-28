@@ -8,13 +8,44 @@ class CPU:
 
     def __init__(self):
         """Construct a new CPU."""
-        self.registers = [0] * 8
-        self.pc = 0  # program counter and current value of IR
-        # contains a copy of the currently executing instruction (PC)
-        self.ir = None
         self.ram = [0] * 256  # list of 256 zeros
         # We're essentially making "buckets" for our locations
         # in memory, in which we can use to store bits later.
+        self.reg = [0] * 8
+        self.pc = 0  # program counter and current value of IR
+        # contains a copy of the currently executing instruction (PC)
+        # self.ir = 0b00000000
+
+    # ADDING RAM_READ()
+    def ram_read(self, mar_address):
+        # should accept the address to read and return the value stored there.
+        # MAR # holds the memory address we're reading or writing
+        return self.ram[mar_address]
+
+    # ADDING RAM_WRITE()
+    def ram_write(self, mar_address, mdr_value):
+        # should accept a value to write, and the address to write it to.
+        # MDR # holds the value to write or the value just read
+        self.ram[mar_address] = mdr_value
+
+    # ADDING HLT FUNCTION
+    def hlt(self, operand_a, operand_b):
+        # halt the CPU and exit the emulator.
+        return(0, False)
+
+    # ADDING LDI FUNCTION
+    def ldi(self, operand_a, operand_b):
+        # load "immediate", store a value in a register,
+        # or "set this register to this value".
+        self.reg[operand_a] = operand_b
+        return (3, True)
+
+    # ADDING PRN FUNCTION
+    def prn(self, operand_a, operand_b):
+       # a pseudo-instruction that prints the numeric value
+       # stored in a register.
+        print(self.reg[operand_a])
+        return (2, True)
 
     def load(self):
         """Load a program into memory."""
@@ -66,18 +97,40 @@ class CPU:
 
         print()
 
-    # ADDING RAM_READ()
-    def ram_read(self, address):
-        # should accept the address to read and return the value stored there.
-        # MAR # holds the memory address we're reading or writing
-        return self.ram[address]
-
- # ADDING RAM_WRITE()
-    def ram_write(self, address, mdr_value):
-        # should accept a value to write, and the address to write it to.
-        # MDR # holds the value to write or the value just read
-        self.ram[mdr_value][address]
-
     def run(self):
         """Run the CPU."""
-        pass
+        # ADDING LIST OF COMMANDS NEEDED FOR RUN()
+        ldi = 0b10000010
+        # Set the value of a register to an integer.
+        prn = 0b01000111
+        # Print numeric value stored in the given register.
+        # Print to the console the decimal integer value that is stored in the given register.
+        hlt = 0b00000001
+        # Halt the CPU (and exit the emulator).
+
+        running = True
+
+        while running:
+            self.trace()  # says to call this for help debugging
+            # local variable called INSTRUCTION REGISTER
+            ir = self.ram_read(self.pc)
+            # It needs to read the memory address that's
+            # stored in register PC (initialized to self.pc = 0) in Class
+
+            # remember to put self. before pc
+            # read the bytes at PC+1 and PC+2 and store in variables
+            operand_a = self.ram_read(self.pc + 1)
+            operand_b = self.ram_read(self.pc + 2)
+
+            if ir == ldi:
+                self.reg[operand_a] = operand_b
+                # set value of register to an integer
+                self.pc += 3
+            elif ir == prn:
+                print(f'{self.reg[operand_a]}')
+                self.pc += 2
+            elif ir == hlt:
+                running = False  # stop running
+            else:
+                print(f'Unknown Commands: {ir}')
+                sys.exit(1)
