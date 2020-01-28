@@ -47,26 +47,42 @@ class CPU:
         print(self.reg[operand_a])
         return (2, True)
 
-    def load(self):
+    def load(self, filename):
         """Load a program into memory."""
+        try:
+            address = 0
+            # memory = self.ram
+            # print("try memory", memory)
+            with open(filename) as f:
+                for line in f:
+                    # Ignore comments
+                    comment_split = line.split("#")
+                    num = comment_split[0].strip()
+                    if num == "":
+                        continue  # Ignore blank line
+                    value = int(num)   # Base 10, but ls-8 is base 2
+                    self.ram[address] = value
+                    address += 1
+        except FileNotFoundError:
+            print(f"{sys.argv[0]}: {filename} not found")
+            sys.exit(2)
+    # address = 0
 
-        address = 0
+    # # For now, we've just hardcoded a program:
 
-        # For now, we've just hardcoded a program:
+    # program = [
+    #     # From print8.ls8
+    #     0b10000010,  # LDI R0,8
+    #     0b00000000,
+    #     0b00001000,
+    #     0b01000111,  # PRN R0
+    #     0b00000000,
+    #     0b00000001,  # HLT
+    # ]
 
-        program = [
-            # From print8.ls8
-            0b10000010,  # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111,  # PRN R0
-            0b00000000,
-            0b00000001,  # HLT
-        ]
-
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+    # for instruction in program:
+    #     self.ram[address] = instruction
+    #     address += 1
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
@@ -134,3 +150,6 @@ class CPU:
             else:
                 print(f'Unknown Commands: {ir}')
                 sys.exit(1)
+
+# cpu = CPU()
+# cpu.load(sys.argv[1])
