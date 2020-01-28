@@ -47,6 +47,11 @@ class CPU:
         print(self.reg[operand_a])
         return (2, True)
 
+    # ADDING MUL FUNCTION
+    def mul(self, operand_a, operand_b):
+        self.reg[operand_a] * self.reg[operand_b]
+        return (3, True)
+
     def load(self, filename):
         """Load a program into memory."""
         try:
@@ -60,7 +65,9 @@ class CPU:
                     num = comment_split[0].strip()
                     if num == "":
                         continue  # Ignore blank line
-                    value = int(num)   # Base 10, but ls-8 is base 2
+                    value = int(num, 2)   # Base 10, but ls-8 is base 2
+                    # print("value", value)
+                    # int changes binary strings to int values
                     self.ram[address] = value
                     address += 1
         except FileNotFoundError:
@@ -89,7 +96,8 @@ class CPU:
 
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
-        # elif op == "SUB": etc
+        elif op == "MUL":
+            self.reg[reg_a] *= self.reg[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -123,13 +131,14 @@ class CPU:
         # Print to the console the decimal integer value that is stored in the given register.
         hlt = 0b00000001
         # Halt the CPU (and exit the emulator).
+        mul = 0b10100010
 
         running = True
 
         while running:
             self.trace()  # says to call this for help debugging
             # local variable called INSTRUCTION REGISTER
-            ir = self.ram_read(self.pc)
+            ir = self.ram[self.pc]
             # It needs to read the memory address that's
             # stored in register PC (initialized to self.pc = 0) in Class
 
@@ -145,11 +154,12 @@ class CPU:
             elif ir == prn:
                 print(f'{self.reg[operand_a]}')
                 self.pc += 2
+            elif ir == mul:
+                # self.reg[operand_a] * self.reg[operand_b]
+                self.reg[operand_a] = self.reg[operand_a] * self.reg[operand_b]
+                self.pc += 3
             elif ir == hlt:
                 running = False  # stop running
             else:
                 print(f'Unknown Commands: {ir}')
                 sys.exit(1)
-
-# cpu = CPU()
-# cpu.load(sys.argv[1])
