@@ -1,5 +1,4 @@
 """CPU functionality."""
-# (SN) MEANS SEE MY NOTES FOR MY DETAILS IN SEP FILE
 import sys
 
 
@@ -11,10 +10,16 @@ class CPU:
         self.ram = [0] * 256  # list of 256 zeros
         # We're essentially making "buckets" for our locations
         # in memory, in which we can use to store bits later.
-        self.reg = [0] * 8
+        self.registers = [0] * 8
         self.pc = 0  # program counter and current value of IR
         # contains a copy of the currently executing instruction (PC)
         # self.ir = 0b00000000
+        self.pc = 7
+        # pointer (dont need this but makes it easier to visualize)
+        self.registers[self.pc] = 0xF4
+        # our 8th register at index 7
+        # R7 is reserved for stack pointer
+        # R7 is set to 0xF4 (0x is prefix for hexidecimal)
 
     # ADDING RAM_READ()
     def ram_read(self, mar_address):
@@ -37,20 +42,37 @@ class CPU:
     def ldi(self, operand_a, operand_b):
         # load "immediate", store a value in a register,
         # or "set this register to this value".
-        self.reg[operand_a] = operand_b
+        self.registers[operand_a] = operand_b
         return (3, True)
 
     # ADDING PRN FUNCTION
     def prn(self, operand_a, operand_b):
        # a pseudo-instruction that prints the numeric value
        # stored in a register.
-        print(self.reg[operand_a])
+        print(self.registers[operand_a])
         return (2, True)
 
     # ADDING MUL FUNCTION
     def mul(self, operand_a, operand_b):
-        self.reg[operand_a] * self.reg[operand_b]
+        self.registers[operand_a] * self.registers[operand_b]
         return (3, True)
+
+    # ADDING PUSH FUNCTION
+    def push(self):
+        reg = self.ram[self.pc + 1]
+        val = self.registers[reg]  # CREATE STACK POINTER
+        self.registers[self.pc] -= 1  # decrement stack pointer
+        # copy value to given reg
+        self.ram[self.registers[self.sp]] = val
+        self.pc += 2
+
+    # ADDING POP FUNCTION
+    def pop(self):
+        reg = self.ram[self.pc + 1]
+        val = self.ram[self.registers[self.sp]]
+        self.registers[reg] = val
+        self.registers[self.sp] += 1  # increment stack pointer
+        self.pc += 2
 
     def load(self, filename):
         """Load a program into memory."""
@@ -95,9 +117,9 @@ class CPU:
         """ALU operations."""
 
         if op == "ADD":
-            self.reg[reg_a] += self.reg[reg_b]
+            self.registers[reg_a] += self.registers[reg_b]
         elif op == "MUL":
-            self.reg[reg_a] *= self.reg[reg_b]
+            self.registers[reg_a] *= self.registers[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -117,7 +139,7 @@ class CPU:
         ), end='')
 
         for i in range(8):
-            print(" %02X" % self.reg[i], end='')
+            print(" %02X" % self.registers[i], end='')
 
         print()
 
@@ -132,6 +154,11 @@ class CPU:
         hlt = 0b00000001
         # Halt the CPU (and exit the emulator).
         mul = 0b10100010
+        # Multiply the values in two registers together and store the result in registerA.
+        push = 0b01000101
+        # Push the value in the given register on the stack.
+        pop = 0b01000110
+        # Pop the value at the top of the stack into the given register.
 
         running = True
 
@@ -148,18 +175,31 @@ class CPU:
             operand_b = self.ram_read(self.pc + 2)
 
             if ir == ldi:
-                self.reg[operand_a] = operand_b
+                self.registers[operand_a] = operand_b
                 # set value of register to an integer
                 self.pc += 3
             elif ir == prn:
-                print(f'{self.reg[operand_a]}')
+                print(f'{self.registers[operand_a]}')
                 self.pc += 2
             elif ir == mul:
                 # self.reg[operand_a] * self.reg[operand_b]
-                self.reg[operand_a] = self.reg[operand_a] * self.reg[operand_b]
+                self.registers[operand_a] = self.registers[operand_a] * \
+                    self.registers[operand_b]
                 self.pc += 3
             elif ir == hlt:
                 running = False  # stop running
+            elif ir == push:
+                reg = self.ram[self.pc + 1]
+                val = self.registers[reg]
+                self.registers[self.sp] -= 1
+                self.ram[self.registers[self.sp]] = val
+                self.pc += 2
+            elif ir == pop:
+                reg = self.ram[self.pc + 1]
+                val = self.ram[self.registers[self.sp]]
+                self.registers[reg] = val
+                self.registers[self.sp] += 1
+                self.pc += 2
             else:
                 print(f'Unknown Commands: {ir}')
                 sys.exit(1)
