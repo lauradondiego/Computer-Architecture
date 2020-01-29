@@ -1,7 +1,7 @@
 """CPU functionality."""
 import sys
 
-# decalare opcodes up here instead
+# decalare opcodes up here instead as variables and use in branchtable
 ldi = 0b10000010
 # Set the value of a register to an integer.
 prn = 0b01000111
@@ -29,10 +29,10 @@ class CPU:
         self.pc = 0  # program counter and current value of IR
         # contains a copy of the currently executing instruction (PC)
         # self.ir = 0b00000000
-        self.pc = 7
+        self.sp = 7
         self.running = False  # initialize running to false
         # pointer (dont need this but makes it easier to visualize)
-        self.registers[self.pc] = 0xF4
+        self.registers[self.sp] = 0xF4
         # our 8th register at index 7
         # R7 is reserved for stack pointer
         # R7 is set to 0xF4 (0x is prefix for hexidecimal)
@@ -58,40 +58,52 @@ class CPU:
         self.ram[mar_address] = mdr_value
 
     # ADDING HLT FUNCTION
-    def hlt(self, operand_a, operand_b):
+    def hlt(self):
         # halt the CPU and exit the emulator.
-        return(0, False)
+        self.running = False
 
     # ADDING LDI FUNCTION
-    def ldi(self, operand_a, operand_b):
+    def ldi(self):
+        print("ldi")
+        operand_a = self.ram_read(self.pc + 1)
+        operand_b = self.ram_read(self.pc + 2)
         # load "immediate", store a value in a register,
         # or "set this register to this value".
         self.registers[operand_a] = operand_b
-        return (3, True)
+        self.pc += 3
 
     # ADDING PRN FUNCTION
-    def prn(self, operand_a, operand_b):
+    def prn(self):
+        print("prn")
+        operand_a = self.ram_read(self.pc + 1)
        # a pseudo-instruction that prints the numeric value
        # stored in a register.
         print(self.registers[operand_a])
-        return (2, True)
+        self.pc += 2
 
     # ADDING MUL FUNCTION
-    def mul(self, operand_a, operand_b):
+    def mul(self):
+        print("mul")
+        operand_a = self.ram_read(self.pc + 1)
+        operand_b = self.ram_read(self.pc + 2)
+
         self.registers[operand_a] * self.registers[operand_b]
-        return (3, True)
+        self.pc += 3
 
     # ADDING PUSH FUNCTION
     def push(self):
+        print("push")
+
         reg = self.ram[self.pc + 1]
         val = self.registers[reg]  # CREATE STACK POINTER
-        self.registers[self.pc] -= 1  # decrement stack pointer
+        self.registers[self.sp] -= 1  # decrement stack pointer
         # copy value to given reg
         self.ram[self.registers[self.sp]] = val
         self.pc += 2
 
     # ADDING POP FUNCTION
     def pop(self):
+        print("pop")
         reg = self.ram[self.pc + 1]
         val = self.ram[self.registers[self.sp]]
         self.registers[reg] = val
@@ -187,9 +199,10 @@ class CPU:
         self.running = True
 
         while self.running:
-            self.trace()  # says to call this for help debugging
+            # self.trace()  # says to call this for help debugging
             # local variable called INSTRUCTION REGISTER
             ir = self.ram[self.pc]
+            print("ir", ir)
             self.branchtable[ir]()
             # It needs to read the memory address that's
             # stored in register PC (initialized to self.pc = 0) in Class
