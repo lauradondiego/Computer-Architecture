@@ -15,7 +15,10 @@ push = 0b01000101
 # Push the value in the given register on the stack.
 pop = 0b01000110
 # Pop the value at the top of the stack into the given register
-
+call = 0b01010000
+# Calls a subroutine (function) at the address stored in the register.
+ret = 0b00010001
+# Return from subroutine.
 
 class CPU:
     """Main CPU class."""
@@ -43,6 +46,8 @@ class CPU:
         self.branchtable[mul] = self.mul  # key
         self.branchtable[push] = self.push  # key
         self.branchtable[pop] = self.pop  # key
+        self.branchtable[call] = self.call  # key
+        self.branchtable[ret] = self.ret  # key
 
 
     # ADDING RAM_READ()
@@ -93,7 +98,6 @@ class CPU:
     # ADDING PUSH FUNCTION
     def push(self):
         print("push")
-
         reg = self.ram[self.pc + 1]
         val = self.registers[reg]  # CREATE STACK POINTER
         self.registers[self.sp] -= 1  # decrement stack pointer
@@ -109,6 +113,21 @@ class CPU:
         self.registers[reg] = val
         self.registers[self.sp] += 1  # increment stack pointer
         self.pc += 2
+    
+    def call(self):
+        val = self.pc + 2
+        self.registers[self.sp] -= 1
+        self.ram[self.registers[self.sp]] = val
+        reg = self.ram[self.pc + 1]
+        subroutine_address = self.registers[reg]
+        print(f"CALLING SR AT ADDRESS {subroutine_address}")
+        self.pc = subroutine_address
+
+    def ret(self):
+        return_address = self.registers[self.sp]
+        print(f"RETURNING TO ADDRESS {return_address}")
+        self.pc = self.ram[return_address]
+        self.registers[self.pc] += 1
 
     def load(self, filename):
         """Load a program into memory."""
