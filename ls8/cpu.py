@@ -1,6 +1,11 @@
 """CPU functionality."""
 import sys
 
+# INSTRUCTIONS FOR SPRINT CHALLENGE
+#  1. Add the CMP instruction and equal flag to your LS-8.
+#  2. Add the JMP instruction.
+#  3. Add the JEQ and JNE instructions.
+
 # decalare opcodes up here instead as variables and use in branchtable
 ldi = 0b10000010
 # Set the value of a register to an integer.
@@ -19,6 +24,19 @@ call = 0b01010000
 # Calls a subroutine (function) at the address stored in the register.
 ret = 0b00010001
 # Return from subroutine.
+cmp_ins = 0b10100111
+# Compare the values in two registers.
+# If they are equal, set the Equal E flag to 1, otherwise set it to 0.
+# If registerA is less than registerB, set the Less-than L flag to 1, otherwise set it to 0.
+# If registerA is greater than registerB, set the Greater-than G flag to 1, otherwise set it to 0.
+# EQUAL FLAG: E Equal: during a CMP, set to 1 if registerA is equal to registerB, zero otherwise.
+jmp = 0b01010100
+# Jump to the address stored in the given register.
+jeq = 0b01010101
+# If equal flag is set (true), jump to the address stored in the given register.
+jne = 0b01010110
+# If E flag is clear (false, 0), jump to the address stored in the given register.
+
 
 class CPU:
     """Main CPU class."""
@@ -49,8 +67,8 @@ class CPU:
         self.branchtable[call] = self.call  # key
         self.branchtable[ret] = self.ret  # key
 
-
     # ADDING RAM_READ()
+
     def ram_read(self, mar_address):
         # should accept the address to read and return the value stored there.
         # MAR # holds the memory address we're reading or writing
@@ -98,6 +116,7 @@ class CPU:
     # ADDING PUSH FUNCTION
     def push(self):
         print("push")
+
         reg = self.ram[self.pc + 1]
         val = self.registers[reg]  # CREATE STACK POINTER
         self.registers[self.sp] -= 1  # decrement stack pointer
@@ -113,21 +132,22 @@ class CPU:
         self.registers[reg] = val
         self.registers[self.sp] += 1  # increment stack pointer
         self.pc += 2
-    
+
     def call(self):
+        operand_a = self.ram_read(self.pc + 1)
         val = self.pc + 2
         self.registers[self.sp] -= 1
-        self.ram[self.registers[self.sp]] = val
-        reg = self.ram[self.pc + 1]
+        self.ram_write(self.registers[self.sp], val)
+        reg = self.ram_read(self.pc + 1)
         subroutine_address = self.registers[reg]
-        print(f"CALLING SR AT ADDRESS {subroutine_address}")
         self.pc = subroutine_address
 
     def ret(self):
+        # Pop the return address off the stack
+        # Store it in the PC
         return_address = self.registers[self.sp]
-        print(f"RETURNING TO ADDRESS {return_address}")
-        self.pc = self.ram[return_address]
-        self.registers[self.pc] += 1
+        self.pc = self.ram_read(return_address)
+        self.registers[self.sp] += 1
 
     def load(self, filename):
         """Load a program into memory."""
@@ -221,7 +241,7 @@ class CPU:
             # self.trace()  # says to call this for help debugging
             # local variable called INSTRUCTION REGISTER
             ir = self.ram[self.pc]
-            print("ir", ir)
+            print("ir:", ir)
             self.branchtable[ir]()
             # It needs to read the memory address that's
             # stored in register PC (initialized to self.pc = 0) in Class
