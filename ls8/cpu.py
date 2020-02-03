@@ -1,42 +1,251 @@
 """CPU functionality."""
-
 import sys
+
+# INSTRUCTIONS FOR SPRINT CHALLENGE
+#  1. Add the CMP instruction and equal flag to your LS-8.
+#  2. Add the JMP instruction.
+#  3. Add the JEQ and JNE instructions.
+
+# decalare opcodes up here instead as variables and use in branchtable
+ldi = 0b10000010
+# Set the value of a register to an integer.
+prn = 0b01000111
+# Print numeric value stored in the given register.
+# Print to the console the decimal integer value that is stored in the given register.
+hlt = 0b00000001
+# Halt the CPU (and exit the emulator).
+mul = 0b10100010
+# Multiply the values in two registers together and store the result in registerA.
+push = 0b01000101
+# Push the value in the given register on the stack.
+pop = 0b01000110
+# Pop the value at the top of the stack into the given register
+call = 0b01010000
+# Calls a subroutine (function) at the address stored in the register.
+ret = 0b00010001
+# Return from subroutine.
+cmp_ins = 0b10100111
+# Compare the values in two registers.
+# If they are equal, set the Equal E flag to 1, otherwise set it to 0.
+# If registerA is less than registerB, set the Less-than L flag to 1, otherwise set it to 0.
+# If registerA is greater than registerB, set the Greater-than G flag to 1, otherwise set it to 0.
+# EQUAL FLAG: E Equal: during a CMP, set to 1 if registerA is equal to registerB, zero otherwise.
+jmp = 0b01010100
+# Jump to the address stored in the given register.
+jeq = 0b01010101
+# If equal flag is set (true), jump to the address stored in the given register.
+jne = 0b01010110
+# If E flag is clear (false, 0), jump to the address stored in the given register.
+
 
 class CPU:
     """Main CPU class."""
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+        self.ram = [0] * 256  # list of 256 zeros
+        # We're essentially making "buckets" for our locations
+        # in memory, in which we can use to store bits later.
+        self.registers = [0] * 8
+        self.pc = 0  # program counter and current value of IR
+        # contains a copy of the currently executing instruction (PC)
+        # self.ir = 0b00000000
+        self.sp = 7
+        self.running = False  # initialize running to false
+        # pointer (dont need this but makes it easier to visualize)
+        self.registers[self.sp] = 0xF4
+        self.fl = [0] * 8  # flag
+        self.less = 0
+        self.greater = 1
+        self.equal = 2
+        # our 8th register at index 7
+        # R7 is reserved for stack pointer
+        # R7 is set to 0xF4 (0x is prefix for hexidecimal)
+        self.branchtable = {}
+        self.branchtable[ldi] = self.ldi  # key
+        self.branchtable[prn] = self.prn  # key
+        self.branchtable[hlt] = self.hlt  # key
+        self.branchtable[mul] = self.mul  # key
+        self.branchtable[push] = self.push  # key
+        self.branchtable[pop] = self.pop  # key
+        self.branchtable[call] = self.call  # key
+        self.branchtable[ret] = self.ret  # key
+        self.branchtable[cmp_ins] = self.cmp_ins  # key
+        self.branchtable[jmp] = self.jmp  # key
+        self.branchtable[jeq] = self.jeq  # key
+        self.branchtable[jne] = self.jne  # key
 
-    def load(self):
+    # ADDING RAM_READ()
+
+    def ram_read(self, mar_address):
+        # should accept the address to read and return the value stored there.
+        # MAR # holds the memory address we're reading or writing
+        return self.ram[mar_address]
+
+    # ADDING RAM_WRITE()
+    def ram_write(self, mar_address, mdr_value):
+        # should accept a value to write, and the address to write it to.
+        # MDR # holds the value to write or the value just read
+        self.ram[mar_address] = mdr_value
+
+    # ADDING HLT FUNCTION
+    def hlt(self):
+        # halt the CPU and exit the emulator.
+        self.running = False
+
+    # ADDING LDI FUNCTION
+    def ldi(self):
+        # print("ldi")
+        operand_a = self.ram_read(self.pc + 1)
+        operand_b = self.ram_read(self.pc + 2)
+        # load "immediate", store a value in a register,
+        # or "set this register to this value".
+        self.registers[operand_a] = operand_b
+        self.pc += 3
+
+    # ADDING PRN FUNCTION
+    def prn(self):
+        # print("prn")
+        operand_a = self.ram_read(self.pc + 1)
+       # a pseudo-instruction that prints the numeric value
+       # stored in a register.
+        print(self.registers[operand_a])
+        self.pc += 2
+
+    # ADDING MUL FUNCTION
+    def mul(self):
+        print("mul")
+        operand_a = self.ram_read(self.pc + 1)
+        operand_b = self.ram_read(self.pc + 2)
+
+        self.registers[operand_a] * self.registers[operand_b]
+        self.pc += 3
+
+    # ADDING PUSH FUNCTION
+    def push(self):
+        print("push")
+
+        reg = self.ram[self.pc + 1]
+        val = self.registers[reg]  # CREATE STACK POINTER
+        self.registers[self.sp] -= 1  # decrement stack pointer
+        # copy value to given reg
+        self.ram[self.registers[self.sp]] = val
+        self.pc += 2
+
+    # ADDING POP FUNCTION
+    def pop(self):
+        print("pop")
+        reg = self.ram[self.pc + 1]
+        val = self.ram[self.registers[self.sp]]
+        self.registers[reg] = val
+        self.registers[self.sp] += 1  # increment stack pointer
+        self.pc += 2
+
+    def call(self):
+        print("CALL", call)
+        operand_a = self.ram_read(self.pc + 1)
+        val = self.pc + 2
+        self.registers[self.sp] -= 1
+        self.ram_write(self.registers[self.sp], val)
+        # reg = self.ram_read(self.pc + 1)
+        subroutine_address = self.registers[operand_a]
+        self.pc = subroutine_address
+
+    def ret(self):
+        # Pop the return address off the stack
+        # Store it in the PC
+        return_address = self.registers[self.sp]
+        self.pc = self.ram_read(return_address)
+        self.registers[self.sp] += 1
+
+    def cmp_ins(self):
+        operand_a = self.ram_read(self.pc + 1)
+        operand_b = self.ram_read(self.pc + 2)
+        # * If they are equal, set the Equal `E` flag to 1, otherwise set it to 0.
+        if self.registers[operand_a] == self.registers[operand_b]:
+            self.fl[self.equal] = 1
+        else:
+            self.fl[self.equal] = 0
+        # * If registerA is less than registerB, set the Less-than `L` flag to 1,
+        # otherwise set it to 0.
+        if self.registers[operand_a] < self.registers[operand_b]:
+            self.fl[self.less] = 1
+        else:
+            self.fl[self.less] = 0
+        # * If registerA is greater than registerB, set the Greater-than `G` flag
+        # to 1, otherwise set it to 0.
+        if self.registers[operand_a] > self.registers[operand_b]:
+            self.fl[self.greater] = 1
+        else:
+            self.fl[self.greater] = 0
+        self.pc += 3
+
+    def jmp(self):
+        jump = self.ram_read(self.pc + 1)
+        self.pc = self.registers[jump]
+
+    def jeq(self):
+        # If `equal` flag is set (true),
+        #  jump to the address stored in the given register.
+        if self.fl[self.equal] == 1:
+            self.pc = self.registers[self.ram_read(self.pc + 1)]
+        else:
+            self.pc += 2
+
+    def jne(self):
+        # If `E` flag is clear (false, 0),
+        # jump to the address stored in the given register.
+        if self.fl[self.equal] == 0:
+            self.pc = self.registers[self.ram_read(self.pc + 1)]
+        else:
+            self.pc += 2
+
+    def load(self, filename):
         """Load a program into memory."""
+        try:
+            address = 0
+            # memory = self.ram
+            # print("try memory", memory)
+            with open(filename) as f:
+                for line in f:
+                    # Ignore comments
+                    comment_split = line.split("#")
+                    num = comment_split[0].strip()
+                    if num == "":
+                        continue  # Ignore blank line
+                    value = int(num, 2)   # Base 10, but ls-8 is base 2
+                    # print("value", value)
+                    # int changes binary strings to int values
+                    self.ram[address] = value
+                    address += 1
+        except FileNotFoundError:
+            print(f"{sys.argv[0]}: {filename} not found")
+            sys.exit(2)
+    # address = 0
 
-        address = 0
+    # # For now, we've just hardcoded a program:
 
-        # For now, we've just hardcoded a program:
+    # program = [
+    #     # From print8.ls8
+    #     0b10000010,  # LDI R0,8
+    #     0b00000000,
+    #     0b00001000,
+    #     0b01000111,  # PRN R0
+    #     0b00000000,
+    #     0b00000001,  # HLT
+    # ]
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
-
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
-
+    # for instruction in program:
+    #     self.ram[address] = instruction
+    #     address += 1
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
 
         if op == "ADD":
-            self.reg[reg_a] += self.reg[reg_b]
-        #elif op == "SUB": etc
+            self.registers[reg_a] += self.registers[reg_b]
+        # elif op == "MUL":
+        #     self.registers[reg_a] *= self.registers[reg_b]
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -48,18 +257,95 @@ class CPU:
 
         print(f"TRACE: %02X | %02X %02X %02X |" % (
             self.pc,
-            #self.fl,
-            #self.ie,
+            # self.fl,
+            # self.ie,
             self.ram_read(self.pc),
             self.ram_read(self.pc + 1),
             self.ram_read(self.pc + 2)
         ), end='')
 
         for i in range(8):
-            print(" %02X" % self.reg[i], end='')
+            print(" %02X" % self.registers[i], end='')
 
         print()
 
     def run(self):
         """Run the CPU."""
-        pass
+        # ADDING LIST OF COMMANDS NEEDED FOR RUN()
+        # ldi = 0b10000010
+        # # Set the value of a register to an integer.
+        # prn = 0b01000111
+        # # Print numeric value stored in the given register.
+        # # Print to the console the decimal integer value that is stored in the given register.
+        # hlt = 0b00000001
+        # # Halt the CPU (and exit the emulator).
+        # mul = 0b10100010
+        # # Multiply the values in two registers together and store the result in registerA.
+        # push = 0b01000101
+        # # Push the value in the given register on the stack.
+        # pop = 0b01000110
+        # Pop the value at the top of the stack into the given register.
+
+        self.running = True
+
+        while self.running:
+            # self.trace()  # says to call this for help debugging
+            # local variable called INSTRUCTION REGISTER
+            ir = self.ram[self.pc]
+            # print("ir:", ir)
+            self.branchtable[ir]()
+            # It needs to read the memory address that's
+            # stored in register PC (initialized to self.pc = 0) in Class
+
+            # remember to put self. before pc
+            # read the bytes at PC+1 and PC+2 and store in variables
+
+            # operand_a = self.ram_read(self.pc + 1)
+            # operand_b = self.ram_read(self.pc + 2)
+
+            # op = self.OPCODES[ir]
+
+            # if op == "LDI":
+            #     self.ldi()
+            # elif op == "PRN":
+            #     self.prn()
+            # elif op == "MUL":
+            #     self.mul()
+            # elif op == "PUSH":
+            #     self.push()
+            # elif op == "POP":
+            #     self.pop()
+            # elif op == "HLT":
+            #     running = False  # stop running
+            # else:
+            #     print(f'Unknown Commands: {ir}')
+            #     sys.exit(1)
+            # if ir == ldi:
+            #     self.registers[operand_a] = operand_b
+            #     # set value of register to an integer
+            #     self.pc += 3
+            # elif ir == prn:
+            #     print(f'{self.registers[operand_a]}')
+            #     self.pc += 2
+            # elif ir == mul:
+            #     # self.reg[operand_a] * self.reg[operand_b]
+            #     self.registers[operand_a] = self.registers[operand_a] * \
+            #         self.registers[operand_b]
+            #     self.pc += 3
+            # elif ir == push:
+            #     reg = self.ram[self.pc + 1]
+            #     val = self.registers[reg]
+            #     self.registers[self.sp] -= 1
+            #     self.ram[self.registers[self.sp]] = val
+            #     self.pc += 2
+            # elif ir == pop:
+            #     reg = self.ram[self.pc + 1]
+            #     val = self.ram[self.registers[self.sp]]
+            #     self.registers[reg] = val
+            #     self.registers[self.sp] += 1
+            #     self.pc += 2
+            # elif ir == hlt:
+            #     running = False  # stop running
+            # else:
+            #     print(f'Unknown Commands: {ir}')
+            #     sys.exit(1)
