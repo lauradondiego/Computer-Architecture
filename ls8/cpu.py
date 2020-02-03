@@ -54,6 +54,10 @@ class CPU:
         self.running = False  # initialize running to false
         # pointer (dont need this but makes it easier to visualize)
         self.registers[self.sp] = 0xF4
+        self.fl = [0] * 8  # flag
+        self.less = 0
+        self.greater = 1
+        self.equal = 2
         # our 8th register at index 7
         # R7 is reserved for stack pointer
         # R7 is set to 0xF4 (0x is prefix for hexidecimal)
@@ -66,6 +70,10 @@ class CPU:
         self.branchtable[pop] = self.pop  # key
         self.branchtable[call] = self.call  # key
         self.branchtable[ret] = self.ret  # key
+        self.branchtable[cmp_ins] = self.cmp_ins  # key
+        self.branchtable[jmp] = self.jmp  # key
+        self.branchtable[jeq] = self.jeq  # key
+        self.branchtable[jne] = self.jne  # key
 
     # ADDING RAM_READ()
 
@@ -87,7 +95,7 @@ class CPU:
 
     # ADDING LDI FUNCTION
     def ldi(self):
-        print("ldi")
+        # print("ldi")
         operand_a = self.ram_read(self.pc + 1)
         operand_b = self.ram_read(self.pc + 2)
         # load "immediate", store a value in a register,
@@ -97,7 +105,7 @@ class CPU:
 
     # ADDING PRN FUNCTION
     def prn(self):
-        print("prn")
+        # print("prn")
         operand_a = self.ram_read(self.pc + 1)
        # a pseudo-instruction that prints the numeric value
        # stored in a register.
@@ -134,12 +142,13 @@ class CPU:
         self.pc += 2
 
     def call(self):
+        print("CALL", call)
         operand_a = self.ram_read(self.pc + 1)
         val = self.pc + 2
         self.registers[self.sp] -= 1
         self.ram_write(self.registers[self.sp], val)
-        reg = self.ram_read(self.pc + 1)
-        subroutine_address = self.registers[reg]
+        # reg = self.ram_read(self.pc + 1)
+        subroutine_address = self.registers[operand_a]
         self.pc = subroutine_address
 
     def ret(self):
@@ -148,6 +157,48 @@ class CPU:
         return_address = self.registers[self.sp]
         self.pc = self.ram_read(return_address)
         self.registers[self.sp] += 1
+
+    def cmp_ins(self):
+        operand_a = self.ram_read(self.pc + 1)
+        operand_b = self.ram_read(self.pc + 2)
+        # * If they are equal, set the Equal `E` flag to 1, otherwise set it to 0.
+        if self.registers[operand_a] == self.registers[operand_b]:
+            self.fl[self.equal] = 1
+        else:
+            self.fl[self.equal] = 0
+        # * If registerA is less than registerB, set the Less-than `L` flag to 1,
+        # otherwise set it to 0.
+        if self.registers[operand_a] < self.registers[operand_b]:
+            self.fl[self.less] = 1
+        else:
+            self.fl[self.less] = 0
+        # * If registerA is greater than registerB, set the Greater-than `G` flag
+        # to 1, otherwise set it to 0.
+        if self.registers[operand_a] > self.registers[operand_b]:
+            self.fl[self.greater] = 1
+        else:
+            self.fl[self.greater] = 0
+        self.pc += 3
+
+    def jmp(self):
+        jump = self.ram_read(self.pc + 1)
+        self.pc = self.registers[jump]
+
+    def jeq(self):
+        # If `equal` flag is set (true),
+        #  jump to the address stored in the given register.
+        if self.fl[self.equal] == 1:
+            self.pc = self.registers[self.ram_read(self.pc + 1)]
+        else:
+            self.pc += 2
+
+    def jne(self):
+        # If `E` flag is clear (false, 0),
+        # jump to the address stored in the given register.
+        if self.fl[self.equal] == 0:
+            self.pc = self.registers[self.ram_read(self.pc + 1)]
+        else:
+            self.pc += 2
 
     def load(self, filename):
         """Load a program into memory."""
@@ -241,7 +292,7 @@ class CPU:
             # self.trace()  # says to call this for help debugging
             # local variable called INSTRUCTION REGISTER
             ir = self.ram[self.pc]
-            print("ir:", ir)
+            # print("ir:", ir)
             self.branchtable[ir]()
             # It needs to read the memory address that's
             # stored in register PC (initialized to self.pc = 0) in Class
